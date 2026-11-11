@@ -4,7 +4,7 @@ Este passo a passo funciona no celular, sem computador, pela integração com Gi
 
 ## 1. Reservar endereço
 
-No painel Discloud, registre um subdomínio. O arquivo `discloud.config` usa `ID=esquadra-commerce-tiago` como sugestão; **este endereço não foi reservado**. Se não estiver disponível, altere o ID no repositório para o subdomínio que você registrar. O formato é somente o ID (sem `.discloud.app`).
+O subdomínio informado para a Discloud é `esquadra-commerce`. O arquivo `discloud.config` usa `ID=esquadra-commerce` (sem `.discloud.app`). Confirme no painel que o domínio foi reservado na sua conta antes do upload. Depois da ativação, o endereço esperado será `https://esquadra-commerce.discloud.app`.
 
 ## 2. Conectar o GitHub
 
