@@ -1,0 +1,14 @@
+// Pagamentos criados pelo backend; o redirecionamento NÃO confirma quitação.
+const oldOrders=orders;
+orders=async function(){await oldOrders();for(const item of document.querySelectorAll('#order-list .card')){const number=item.querySelector('.order-number')?.textContent;const orderData=await api('/api/customer/orders');const order=orderData.orders.find(o=>o.number===number);if(!order)continue;
+ const bal=order.total_cents-(order.payments_received_cents||0);
+ if(bal>0&&order.status!=='cancelado'){
+ const controls=document.createElement('div');controls.className='payment-options';controls.innerHTML=`<p>Pagamento online seguro com Mercado Pago · saldo ${m(bal)}</p><button data-pay="${order.id}" data-mode="total">Pagar saldo</button> <button data-pay="${order.id}" data-mode="entrada30">Entrada de 30%</button> <button data-pay="${order.id}" data-mode="entrada50">Entrada de 50%</button><p class="muted">O pedido só é considerado pago após confirmação do Mercado Pago. Parcelamento no cartão depende das opções exibidas no checkout.</p>`;item.appendChild(controls);
+ }
+ if(['instalado','entregue'].includes(order.status)){
+  const available=order.items.map(i=>`<option value="${i.product_id}">${h(i.name)}</option>`).join('');const rev=document.createElement('div');rev.className='review-options';rev.innerHTML=`<h3>Avalie sua compra</h3><form data-rate="${order.id}"><select name="product_id">${available}</select><select name="stars"><option value="5">5 estrelas</option><option value="4">4 estrelas</option><option value="3">3 estrelas</option><option value="2">2 estrelas</option><option value="1">1 estrela</option></select><textarea name="comment" required minlength="5" maxlength="650" placeholder="Como foi o produto?"></textarea><button>Enviar avaliação</button></form>`;item.appendChild(rev);
+ }
+ }};
+document.querySelector('#order-list').addEventListener('click',async e=>{const b=e.target.closest('[data-pay]');if(!b)return;b.disabled=true;try{const result=await api(`/api/customer/orders/${b.dataset.pay}/mercadopago`,'POST',{installment:b.dataset.mode});const url=new URL(result.checkout_url);if(url.protocol!=='https:'||!(/(^|\.)mercadopago\.com(\.br)?$/.test(url.hostname)))throw Error('Endereço de pagamento inesperado.');location.href=result.checkout_url;}catch(ex){notice(ex.message);b.disabled=false;}});
+document.querySelector('#order-list').addEventListener('submit',async e=>{const form=e.target.closest('[data-rate]');if(!form)return;e.preventDefault();const data=Object.fromEntries(new FormData(form));try{await api('/api/customer/sales/reviews','POST',{product_id:Number(data.product_id),order_id:Number(form.dataset.rate),stars:Number(data.stars),comment:data.comment});form.reset();notice('Avaliação enviada para moderação.')}catch(ex){notice(ex.message)}});
+if(query.has('pagamento'))notice('Retorno do checkout recebido. Aguarde a confirmação do pagamento na linha do tempo do seu pedido.');

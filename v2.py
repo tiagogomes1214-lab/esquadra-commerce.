@@ -213,6 +213,8 @@ class QuoteRequest(BaseModel):
     material:str=Field(default='',max_length=60)
     finish:str=Field(default='',max_length=60)
     glass:str=Field(default='',max_length=80)
+    opening:str=Field(default='correr',max_length=50)
+    leaves:int=Field(default=2,ge=1,le=8)
     notes:str=Field(default='',max_length=1000)
 
 
@@ -229,9 +231,9 @@ def quote_request(req:Request,body:QuoteRequest):
         p=c.execute('SELECT * FROM products WHERE id=? AND active=1',(body.product_id,)).fetchone()
         if not p: raise HTTPException(404,'Produto não encontrado.')
         cur=c.execute('''INSERT INTO quotes(customer_id,product_id,product_name,sku,width_mm,height_mm,material,finish,
-          glass,quantity,notes,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
+          glass,quantity,notes,options_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
           (cid,p['id'],p['name'],p['sku'],body.width_mm,body.height_mm,body.material.strip(),body.finish.strip(),
-           body.glass.strip(),body.quantity,body.notes.strip(),now_iso()))
+           body.glass.strip(),body.quantity,body.notes.strip(),__import__('json').dumps({'opening':body.opening,'leaves':body.leaves}),now_iso()))
         c.execute('UPDATE quotes SET number=? WHERE id=?',(f'ORC-{cur.lastrowid:05d}',cur.lastrowid))
         return {'quote':quote_row(c,c.execute('SELECT * FROM quotes WHERE id=?',(cur.lastrowid,)).fetchone())}
 

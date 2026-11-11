@@ -107,3 +107,5 @@ Este pacote contém `discloud.config` e `discloud_start.py` da instalação que 
 **Antes de atualizar um app com vendas reais:** faça backup verificado de `data/` (banco, segredo de sessão e fotos) no painel da Discloud. Atualizar o repositório no GitHub não confirma que o provedor mantém `data/` entre deploys. Os arquivos `.env`/dados nunca devem ser publicados no repositório.
 
 A integração GitHub da Discloud pode exigir `Update/Reinstall` ou novo upload pelo painel para aplicar o commit; confirme o status e o endpoint `/health` após a atualização.
+
+Veja também [Vendas Pro 3.0](VENDAS_PRO_3.md).

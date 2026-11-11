@@ -47,7 +47,7 @@ if not SECRET_FILE.exists():
     except OSError:
         pass
 
-app = FastAPI(title='ESQUADRA Commerce', version='2.0.0', docs_url=None, redoc_url=None)
+app = FastAPI(title='ESQUADRA Commerce', version='3.0.0', docs_url=None, redoc_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_FILE.read_text(encoding='utf-8').strip(), same_site='lax', https_only=os.getenv('COOKIE_SECURE') == '1')
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 app.mount('/media', StaticFiles(directory=UPLOADS), name='media')
@@ -307,6 +307,9 @@ class NewOrder(BaseModel):
     notes: str = Field(default='', max_length=1000)
     discount: float = Field(default=0, ge=0)
     items: list[OrderLine] = Field(min_length=1, max_length=80)
+    coupon: str = Field(default='', max_length=30)
+    cep: str = Field(default='', max_length=12)
+    delivery_mode: Literal['retirada','entrega'] = 'retirada'
 
 
 class StatusPayload(BaseModel):
@@ -492,7 +495,9 @@ def create_order(body:NewOrder,source:str,customer_id:int|None=None,transaction=
             if p['stock'] < qty: raise HTTPException(409,f'Estoque insuficiente para {p["name"]}. Disponível: {p["stock"]}.')
             product_items.append((p,qty))
         subtotal=sum(p['price_cents']*qty for p,qty in product_items)
-        discount=money_cents(body.discount)
+        from v3 import price_adjustments
+        promotional, shipping, coupon_used, delivery_cep = price_adjustments(c,customer_id,subtotal,body)
+        discount=money_cents(body.discount)+promotional
         if discount>subtotal: raise HTTPException(422,'Desconto não pode ultrapassar o valor do pedido.')
         customer=c.execute('SELECT * FROM customers WHERE id=?',(customer_id,)).fetchone() if customer_id else (c.execute('SELECT * FROM customers WHERE phone=? AND id NOT IN (SELECT customer_id FROM customer_accounts) ORDER BY id LIMIT 1',(body.phone.strip(),)).fetchone() if body.phone.strip() else None)
         if customer:
@@ -508,7 +513,11 @@ def create_order(body:NewOrder,source:str,customer_id:int|None=None,transaction=
           VALUES(?,?,?,?,?,?,?,?,?,?)''', (temp,cid,'novo',body.payment_method,subtotal,discount,subtotal-discount,body.notes,source,now_iso()))
         oid=cur.lastrowid
         order_number=f'PED-{oid:05d}'
-        c.execute('UPDATE orders SET number=? WHERE id=?',(order_number,oid))
+        c.execute('UPDATE orders SET number=?,discount_cents=?,total_cents=?,shipping_cents=?,coupon_code=?,sales_discount_cents=?,delivery_cep=? WHERE id=?',
+                  (order_number,discount,subtotal-discount+shipping,shipping,coupon_used,promotional,delivery_cep,oid))
+        if coupon_used:
+            c.execute('UPDATE coupons SET uses=uses+1 WHERE code=?',(coupon_used,))
+            c.execute('INSERT INTO coupon_uses(order_id,code) VALUES(?,?)',(oid,coupon_used))
         for p,qty in product_items:
             c.execute('''INSERT INTO order_items(order_id,product_id,name,dimension,sku,quantity,unit_price_cents)
             VALUES(?,?,?,?,?,?,?)''',(oid,p['id'],p['name'],p['dimension'],p['sku'],qty,p['price_cents']))
@@ -707,3 +716,10 @@ def health():
 
 # Rotas complementares da versao 2
 import v2 as _v2  # noqa: E402
+
+# Rotas de vendas e pagamento on-line opcionais (versão 3).
+import v3 as _v3  # noqa: E402
+
+@app.get('/configurador')
+def configurator_page():
+    return FileResponse(ROOT / 'templates/configurator.html')
