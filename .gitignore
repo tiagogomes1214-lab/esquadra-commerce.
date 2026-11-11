@@ -1,9 +1,12 @@
 __pycache__/
 *.pyc
 .venv/
+venv/
 .env
-.env.*.local
-data/*
-!data/.gitkeep
+.env.*
+!.env.example
+data/
+*.sqlite3
+*.db
 *.log
 .DS_Store

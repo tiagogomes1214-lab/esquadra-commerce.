@@ -168,6 +168,29 @@ def hash_password(password: str, salt: str):
     return hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), 260_000).hex()
 
 
+def provision_public_admin():
+    """Bootstrap the first administrator using secrets set in the hosting dashboard.
+
+    A public deployment must never let the first visitor claim the administrator account.
+    Environment passwords are used only on first initialization; only a salted hash is stored.
+    """
+    if os.getenv('ESQUADRA_PUBLIC_DEPLOYMENT') != '1':
+        return
+    with db() as c:
+        if c.execute('SELECT 1 FROM admins LIMIT 1').fetchone():
+            return
+        username = os.getenv('ESQUADRA_ADMIN_USERNAME', '').strip()
+        password = os.getenv('ESQUADRA_ADMIN_PASSWORD', '')
+        if len(username) < 3 or len(password) < 16:
+            raise RuntimeError('Para iniciar em producao, configure ESQUADRA_ADMIN_USERNAME (min. 3 caracteres) e ESQUADRA_ADMIN_PASSWORD (min. 16 caracteres) nas variaveis de ambiente da hospedagem.')
+        salt = secrets.token_hex(16)
+        c.execute('INSERT INTO admins(username,salt,password_hash) VALUES(?,?,?)',
+                  (username, salt, hash_password(password, salt)))
+
+
+provision_public_admin()
+
+
 def money_cents(value):
     try:
         val = Decimal(str(value))
@@ -265,6 +288,8 @@ def me(req:Request):
 
 @app.post('/api/admin/setup')
 def setup(req:Request, body:AuthPayload):
+    if os.getenv('ESQUADRA_PUBLIC_DEPLOYMENT') == '1':
+        raise HTTPException(403, 'Configuracao inicial desabilitada na hospedagem publica.')
     with db() as c:
         if c.execute('SELECT 1 FROM admins LIMIT 1').fetchone():
             raise HTTPException(403,'Configuração inicial já realizada.')
