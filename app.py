@@ -4,6 +4,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import io
+import time
+from collections import deque
+from urllib.parse import urlsplit
 import json
 import os
 import re
@@ -44,10 +47,51 @@ if not SECRET_FILE.exists():
     except OSError:
         pass
 
-app = FastAPI(title='ESQUADRA Commerce', version='1.0.0', docs_url=None, redoc_url=None)
+app = FastAPI(title='ESQUADRA Commerce', version='2.0.0', docs_url=None, redoc_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_FILE.read_text(encoding='utf-8').strip(), same_site='lax', https_only=os.getenv('COOKIE_SECURE') == '1')
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 app.mount('/media', StaticFiles(directory=UPLOADS), name='media')
+
+# Security headers and same-origin verification for cookie-authenticated changes.
+@app.middleware('http')
+async def protect_mutations(request: Request, call_next):
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        origin = request.headers.get('origin')
+        if origin:
+            try:
+                origin_host=urlsplit(origin).netloc.lower()
+                host=request.headers.get('host', '').lower()
+            except ValueError:
+                origin_host='invalid'
+                host=''
+            if not host or origin_host != host:
+                return JSONResponse({'detail':'Origem não autorizada.'}, status_code=403)
+    response=await call_next(request)
+    response.headers['X-Content-Type-Options']='nosniff'
+    response.headers['X-Frame-Options']='DENY'
+    response.headers['Referrer-Policy']='strict-origin-when-cross-origin'
+    return response
+
+# Per-account throttling for failed logins. Keep attempts in one worker.
+_FAILED_LOGINS = {}
+def login_throttle(kind: str, identifier: str):
+    key=(kind, identifier.strip().casefold()[:180])
+    current=time.monotonic()
+    attempts=_FAILED_LOGINS.get(key)
+    if attempts is not None:
+        while attempts and attempts[0] < current-300:
+            attempts.popleft()
+        if len(attempts)>=8:
+            raise HTTPException(429, 'Muitas tentativas de acesso. Aguarde alguns minutos.')
+    return key
+
+def note_failed_login(key):
+    if len(_FAILED_LOGINS)>20000:
+        _FAILED_LOGINS.clear()  # bounded memory; does not affect credentials
+    _FAILED_LOGINS.setdefault(key, deque()).append(time.monotonic())
+
+def clear_failed_login(key):
+    _FAILED_LOGINS.pop(key, None)
 
 CATEGORIES = ['Portas de alumínio', 'Janelas de alumínio', 'Portas de madeira', 'Janelas de madeira', 'Portas sacada', 'Balcões']
 SAMPLE_PRODUCTS = [
@@ -169,10 +213,9 @@ def hash_password(password: str, salt: str):
 
 
 def provision_public_admin():
-    """Bootstrap the first administrator using secrets set in the hosting dashboard.
+    """Require explicit administrator credentials from hosting secrets.
 
-    A public deployment must never let the first visitor claim the administrator account.
-    Environment passwords are used only on first initialization; only a salted hash is stored.
+    Never allow the first anonymous website visitor to claim the admin panel.
     """
     if os.getenv('ESQUADRA_PUBLIC_DEPLOYMENT') != '1':
         return
@@ -181,8 +224,8 @@ def provision_public_admin():
             return
         username = os.getenv('ESQUADRA_ADMIN_USERNAME', '').strip()
         password = os.getenv('ESQUADRA_ADMIN_PASSWORD', '')
-        if len(username) < 3 or len(password) < 16:
-            raise RuntimeError('Para iniciar em producao, configure ESQUADRA_ADMIN_USERNAME (min. 3 caracteres) e ESQUADRA_ADMIN_PASSWORD (min. 16 caracteres) nas variaveis de ambiente da hospedagem.')
+        if len(username) < 3 or not 16 <= len(password) <= 200:
+            raise RuntimeError('Configure ESQUADRA_ADMIN_USERNAME e ESQUADRA_ADMIN_PASSWORD na hospedagem.')
         salt = secrets.token_hex(16)
         c.execute('INSERT INTO admins(username,salt,password_hash) VALUES(?,?,?)',
                   (username, salt, hash_password(password, salt)))
@@ -192,23 +235,19 @@ provision_public_admin()
 
 
 def recover_public_admin():
-    """Explicit, environment-only credential recovery without deleting business data.
-
-    Set ESQUADRA_ADMIN_RESET=1 only during the recovery deployment.
-    Remove it after successful login so later restarts do not reset the password.
-    """
+    """Single-administrator recovery. Enable ESQUADRA_ADMIN_RESET=1 temporarily."""
     if os.getenv('ESQUADRA_PUBLIC_DEPLOYMENT') != '1' or os.getenv('ESQUADRA_ADMIN_RESET') != '1':
         return
     username = os.getenv('ESQUADRA_ADMIN_USERNAME', '').strip()
     password = os.getenv('ESQUADRA_ADMIN_PASSWORD', '')
     if len(username) < 3 or not 16 <= len(password) <= 200:
-        raise RuntimeError('Recuperacao: configure usuario (3+ caracteres) e senha (16 a 200 caracteres) na Discloud.')
+        raise RuntimeError('Recuperação exige usuário e senha forte nas variáveis privadas.')
     with db() as c:
         existing = c.execute('SELECT id FROM admins ORDER BY id').fetchall()
         if len(existing) != 1:
-            raise RuntimeError('Recuperacao exige exatamente uma conta administrativa; dados preservados.')
+            raise RuntimeError('Recuperação exige uma conta administrativa já existente.')
         salt = secrets.token_hex(16)
-        c.execute('UPDATE admins SET username=?, salt=?, password_hash=? WHERE id=?',
+        c.execute('UPDATE admins SET username=?,salt=?,password_hash=? WHERE id=?',
                   (username, salt, hash_password(password, salt), existing[0]['id']))
 
 
@@ -233,6 +272,8 @@ def get_order(c, order_id):
     if not r: raise HTTPException(404, 'Pedido não encontrado.')
     d = dict(r)
     d['items'] = [dict(x) for x in c.execute('SELECT * FROM order_items WHERE order_id=?',(order_id,)).fetchall()]
+    d['events']=[dict(x) for x in c.execute('SELECT * FROM order_events WHERE order_id=? ORDER BY id',(order_id,)).fetchall()]
+    d['payments_received_cents']=c.execute('SELECT COALESCE(SUM(amount_cents),0) FROM payments WHERE order_id=?',(order_id,)).fetchone()[0]
     return d
 
 
@@ -269,7 +310,8 @@ class NewOrder(BaseModel):
 
 
 class StatusPayload(BaseModel):
-    status: Literal['novo','confirmado','em produção','entregue','cancelado']
+    status: Literal['novo','aguardando pagamento','confirmado','em produção','pronto para retirada','em transporte','instalação agendada','instalado','entregue','cancelado']
+    note: str = Field(default='',max_length=400)
 
 
 class SettingsPayload(BaseModel):
@@ -313,7 +355,7 @@ def me(req:Request):
 @app.post('/api/admin/setup')
 def setup(req:Request, body:AuthPayload):
     if os.getenv('ESQUADRA_PUBLIC_DEPLOYMENT') == '1':
-        raise HTTPException(403, 'Configuracao inicial desabilitada na hospedagem publica.')
+        raise HTTPException(403, 'Cadastro inicial de administrador desabilitado na hospedagem.')
     with db() as c:
         if c.execute('SELECT 1 FROM admins LIMIT 1').fetchone():
             raise HTTPException(403,'Configuração inicial já realizada.')
@@ -328,10 +370,13 @@ def setup(req:Request, body:AuthPayload):
 
 @app.post('/api/admin/login')
 def login(req:Request, body:AuthPayload):
+    key=login_throttle('admin', body.username)
     with db() as c:
         row = c.execute('SELECT * FROM admins WHERE username=?',(body.username.strip(),)).fetchone()
     if not row or not hmac.compare_digest(row['password_hash'], hash_password(body.password,row['salt'])):
+        note_failed_login(key)
         raise HTTPException(401,'Usuário ou senha incorretos.')
+    clear_failed_login(key)
     req.session.clear()
     req.session['admin_id'] = row['id']
     req.session['username'] = row['username']
@@ -348,7 +393,7 @@ def logout(req:Request):
 def summary(req:Request):
     require_admin(req)
     with db() as c:
-        stats = c.execute('''SELECT COUNT(*) order_count, COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total_cents ELSE 0 END),0) revenue,
+        stats = c.execute('''SELECT COUNT(*) order_count, COALESCE(SUM(CASE WHEN status IN ('confirmado','em produção','pronto para retirada','em transporte','instalação agendada','instalado','entregue') THEN total_cents ELSE 0 END),0) revenue,
           SUM(CASE WHEN status='novo' THEN 1 ELSE 0 END) new_count FROM orders''').fetchone()
         product_count = c.execute('SELECT COUNT(*) FROM products WHERE active=1').fetchone()[0]
         customer_count = c.execute('SELECT COUNT(*) FROM customers').fetchone()[0]
@@ -433,7 +478,7 @@ def customers(req:Request):
           FROM customers cu LEFT JOIN orders o ON o.customer_id=cu.id GROUP BY cu.id ORDER BY cu.id DESC''').fetchall()]}
 
 
-def create_order(body:NewOrder,source:str):
+def create_order(body:NewOrder,source:str,customer_id:int|None=None,transaction=None):
     quantities = {}
     for line in body.items:
         quantities[line.product_id] = quantities.get(line.product_id,0)+line.quantity
@@ -449,7 +494,7 @@ def create_order(body:NewOrder,source:str):
         subtotal=sum(p['price_cents']*qty for p,qty in product_items)
         discount=money_cents(body.discount)
         if discount>subtotal: raise HTTPException(422,'Desconto não pode ultrapassar o valor do pedido.')
-        customer=c.execute('SELECT * FROM customers WHERE phone=? ORDER BY id LIMIT 1',(body.phone.strip(),)).fetchone() if body.phone.strip() else None
+        customer=c.execute('SELECT * FROM customers WHERE id=?',(customer_id,)).fetchone() if customer_id else (c.execute('SELECT * FROM customers WHERE phone=? AND id NOT IN (SELECT customer_id FROM customer_accounts) ORDER BY id LIMIT 1',(body.phone.strip(),)).fetchone() if body.phone.strip() else None)
         if customer:
             cid=customer['id']
             c.execute('UPDATE customers SET name=?,email=?,address=? WHERE id=?',
@@ -467,13 +512,19 @@ def create_order(body:NewOrder,source:str):
         for p,qty in product_items:
             c.execute('''INSERT INTO order_items(order_id,product_id,name,dimension,sku,quantity,unit_price_cents)
             VALUES(?,?,?,?,?,?,?)''',(oid,p['id'],p['name'],p['dimension'],p['sku'],qty,p['price_cents']))
-            c.execute('UPDATE products SET stock=stock-? WHERE id=?',(qty,p['id']))
+        c.execute('INSERT INTO order_events(order_id,status,note,created_at) VALUES(?,?,?,?)',(oid,'novo','Pedido recebido. Aguardando confirmação da loja.',now_iso()))
         return get_order(c,oid)
 
 
 @app.post('/api/checkout')
-def checkout(body:NewOrder):
-    order=create_order(body,'loja online')
+def checkout(req:Request,body:NewOrder):
+    cid=req.session.get('customer_id')
+    if not cid: raise HTTPException(401,'Faça login ou crie uma conta para concluir o pedido.')
+    with db() as c:
+        customer=c.execute('SELECT * FROM customers WHERE id=? AND id IN (SELECT customer_id FROM customer_accounts)',(cid,)).fetchone()
+        if not customer: raise HTTPException(401,'Sessão de cliente inválida.')
+        body.customer_name=customer['name'];body.phone=customer['phone'];body.email=customer['email'];body.address=customer['address']
+    order=create_order(body,'loja online',customer_id=cid)
     return {'ok':True,'number':order['number'],'total_cents':order['total_cents']}
 
 
@@ -494,17 +545,32 @@ def orders(req:Request):
 def change_status(oid:int,req:Request,body:StatusPayload):
     require_admin(req)
     with db() as c:
-        o=c.execute('SELECT status FROM orders WHERE id=?',(oid,)).fetchone()
+        c.execute('BEGIN IMMEDIATE')
+        o=c.execute('SELECT * FROM orders WHERE id=?',(oid,)).fetchone()
         if not o: raise HTTPException(404,'Pedido não encontrado.')
-        if body.status=='cancelado' and o['status']!='cancelado':
-            for item in c.execute('SELECT * FROM order_items WHERE order_id=?',(oid,)).fetchall():
-                c.execute('UPDATE products SET stock=stock+? WHERE id=?',(item['quantity'],item['product_id']))
-        if o['status']=='cancelado' and body.status!='cancelado':
-            for item in c.execute('SELECT * FROM order_items WHERE order_id=?',(oid,)).fetchall():
-                p=c.execute('SELECT stock FROM products WHERE id=?',(item['product_id'],)).fetchone()
-                if not p or p['stock']<item['quantity']: raise HTTPException(409,'Estoque insuficiente para reativar o pedido.')
+        old=o['status']; new=body.status
+        stock_reserved={'confirmado','em produção','pronto para retirada','em transporte','instalação agendada','instalado','entregue'}
+        if old=='cancelado' and new!='cancelado': raise HTTPException(409,'Pedido cancelado não pode ser reativado. Crie outro pedido.')
+        if old==new: return {'order':get_order(c,oid)}
+        was_reserved=bool(o['stock_deducted'])
+        will_reserve=new in stock_reserved
+        if not was_reserved and will_reserve:
+            for item in c.execute('SELECT * FROM order_items WHERE order_id=?',(oid,)):
+                if item['made_to_order']: continue
+                p=c.execute('SELECT stock,name FROM products WHERE id=?',(item['product_id'],)).fetchone()
+                if not p or p['stock']<item['quantity']: raise HTTPException(409,'Estoque insuficiente para confirmar '+item['name'])
                 c.execute('UPDATE products SET stock=stock-? WHERE id=?',(item['quantity'],item['product_id']))
-        c.execute('UPDATE orders SET status=? WHERE id=?',(body.status,oid))
+                c.execute('INSERT INTO stock_movements(product_id,change_qty,reason,order_id,created_at) VALUES(?,?,?,?,?)',(item['product_id'],-item['quantity'],'Confirmação do pedido',oid,now_iso()))
+        if was_reserved and not will_reserve:
+            for item in c.execute('SELECT * FROM order_items WHERE order_id=?',(oid,)):
+                if item['made_to_order']: continue
+                c.execute('UPDATE products SET stock=stock+? WHERE id=?',(item['quantity'],item['product_id']))
+                c.execute('INSERT INTO stock_movements(product_id,change_qty,reason,order_id,created_at) VALUES(?,?,?,?,?)',(item['product_id'],item['quantity'],'Liberação do estoque',oid,now_iso()))
+        if new=='cancelado':
+            net=c.execute('SELECT COALESCE(SUM(amount_cents),0) FROM payments WHERE order_id=?',(oid,)).fetchone()[0]
+            if net>0: raise HTTPException(409,'Registre a devolução dos pagamentos antes de cancelar.')
+        c.execute('UPDATE orders SET status=?,stock_deducted=? WHERE id=?',(new,int(will_reserve),oid))
+        c.execute('INSERT INTO order_events(order_id,status,note,created_at) VALUES(?,?,?,?)',(oid,new,body.note or 'Status atualizado pela loja.',now_iso()))
         return {'order':get_order(c,oid)}
 
 
@@ -555,6 +621,9 @@ def clean(text):
 @app.get('/api/admin/orders/{oid}/receipt.pdf')
 def receipt(oid:int,req:Request):
     require_admin(req)
+    return build_receipt(oid)
+
+def build_receipt(oid:int):
     with db() as c:
         order=get_order(c,oid)
         info=settings_dict(c)
@@ -635,3 +704,6 @@ def receipt(oid:int,req:Request):
 @app.get('/health')
 def health():
     return {'status':'ok'}
+
+# Rotas complementares da versao 2
+import v2 as _v2  # noqa: E402

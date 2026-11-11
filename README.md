@@ -1,80 +1,109 @@
-# ESQUADRA Commerce
+# ESQUADRA Commerce 2.0
 
-Loja virtual + painel administrativo para comércio de portas, janelas e esquadrias. Design preto/branco, responsivo e adaptável ao nome da sua empresa.
+Sistema demonstrativo local de gestão comercial e loja virtual para **portas, janelas, balcões e esquadrias de alumínio/madeira**. Identidade preto e branco, menu administrativo lateral, página do cliente e comprovantes comerciais personalizados.
 
-## Funcionalidades incluídas
+## NOVO — Conta de clientes e acompanhamento online
 
-- **Vitrine pública:** catálogo, categorias, busca, carrinho, formulário de pedido e valores estimados.
-- **Painel administrativo:** acesso com login e senha configurados no primeiro uso.
-- **Produtos:** criar/editar, SKU, categoria, medidas, descrição, preço, estoque, ativo/inativo e **upload de fotos**.
-- **Pedidos:** registrar vendas manuais, receber pedidos da loja, alterar status, calcular totais e descontos, repor estoque em cancelamentos.
-- **Clientes:** cadastro automático a partir de pedidos e histórico de compras.
-- **Notas personalizadas:** gerar e imprimir **comprovantes de venda em PDF** com logo, dados da empresa, cliente, itens, medidas, preço, descontos e mensagem de rodapé.
-- **Personalização:** nome da loja, logotipo, telefone, e-mail, Instagram, endereço, título e rodapé do comprovante.
-- **SQLite:** dados persistem em `data/esquadra.sqlite3`. Fotos enviadas ficam em `data/uploads/`.
+1. O cliente entra na loja (`/`) e adiciona produtos ao carrinho.
+2. Ao finalizar, se não estiver autenticado, é direcionado para **`/conta`**, onde cria a conta ou entra com e-mail e senha. O carrinho é preservado no navegador.
+3. O pedido é registrado como **novo**, associado à conta do cliente, e NÃO desconta o estoque até a confirmação da loja.
+4. No painel (`/admin`), o responsável atualiza a situação do pedido: novo, aguardando pagamento, confirmado, em produção, pronto para retirada, em transporte, instalação agendada, instalado, entregue, cancelado.
+5. O cliente entra novamente em **Minha conta > Meus pedidos** para ver número, itens, valores, histórico de status e previsão de entrega. Pode imprimir seu comprovante comercial.
+6. Um cliente **não pode ler** pedidos, propostas ou PDFs de outros clientes.
 
-## Como executar no Windows
+## Orçamentos sob medida
 
-1. Extraia o ZIP e abra a pasta no VS Code.
-2. No terminal, rode:
+- Cliente logado informa produto, largura/altura em milímetros, acabamento, material, vidro, quantidade e observações.
+- Em **Orçamentos** no painel, o administrador responde com preço unitário e validade.
+- O cliente vê a proposta, imprime PDF e aprova; a aprovação gera um pedido **novo**, sem cobrar automaticamente.
+- Itens originados de orçamento são tratados como sob encomenda: não há baixa automática no estoque de produtos de prateleira ao confirmar.
+
+## Principais funções no painel
+
+| Módulo | Funções |
+|---|---|
+| Visão geral | Pedidos, produtos, alertas e valores comerciais |
+| Pedidos | Vendas manuais, alteração de situação, histórico, previsão de entrega, recebimentos e devoluções manuais |
+| Produtos | Cadastro, edição, fotos principais, galeria (até 8 fotos adicionais), especificações, materiais, vidro e medidas |
+| Orçamentos | Responder propostas, PDF personalizado e aprovação pelo cliente |
+| Clientes | Histórico de compras, nome, telefone, e-mail e endereço |
+| Estoque | Baixa somente na confirmação, devolução em cancelamento e ajustes registrados |
+| Fornecedores | Cadastro e consulta |
+| Compras | Registro e recebimento com reposição de estoque |
+| Financeiro | Registro de pagamentos, reembolsos, despesas pagas e pendentes; saldos |
+| Operação | Tarefas de fabricação, instalação, entrega e retirada com responsável e data |
+| Garantias | Abertura e atualização de atendimentos |
+| Equipe | Cadastro operacional de colaboradores e função (não cria logins por cargo ainda) |
+| Relatórios | Resumo e exportação de pedidos em CSV |
+| Documentos | Comprovante de pedido, proposta comercial e ordem de entrega em PDF; logotipo configurável |
+
+## Instalar no Windows (VS Code)
+
+Requisitos: Python 3.12 ou mais recente, com pip.
+
+1. Extraia o ZIP e abra **ESQUADRA_Commerce_v2** no VS Code.
+2. Abra o terminal PowerShell dentro da pasta e digite:
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python run.py
 ```
 
-3. Acesse **http://127.0.0.1:8000** para abrir a loja.
-4. Acesse **http://127.0.0.1:8000/admin** para abrir o painel. **Na primeira visita, crie seu usuário e sua senha**.
-5. Em **Configurações**, coloque dados reais da empresa, faça o upload da logo e personalize a nota. Em **Produtos**, substitua as imagens ilustrativas pelas fotos reais e revise os preços.
+3. No navegador:
 
-Para rodar novamente em outro dia:
+- **Loja:** http://127.0.0.1:8000
+- **Minha conta:** http://127.0.0.1:8000/conta
+- **Painel administrativo:** http://127.0.0.1:8000/admin
 
-```powershell
-.venv\Scripts\activate
-python run.py
-```
+No primeiro acesso ao painel, crie o usuário administrativo e uma senha forte. Cadastre uma conta de cliente diferente para simular uma compra. A loja vem com **oito produtos ilustrativos**; substitua fotos, preços e dados comerciais.
 
-## Dados de demonstração (opcionais)
+Para rodar de novo: ative `.venv` e execute `python run.py`.
 
-Se quiser começar com 5 vendas de exemplo na primeira execução, inicie com a variável `DEMO_SEED=1`. No PowerShell:
+## Testes automatizados
 
 ```powershell
-$env:DEMO_SEED="1"
-python run.py
+python -m unittest discover -s tests -v
 ```
 
-Os pedidos criados aparecerão como demonstrativos. É possível removê-los em **Configurações** ou **Visão geral**. Os 8 produtos que aparecem inicialmente são **exemplos** com preços ilustrativos, não preços oficiais.
+Os testes cobrem contas separadas de clientes, proteção dos PDFs, compra, status, estoque, cancelamento, reembolso manual, orçamento, compras, financeiro e demais endpoints. Os testes usam um banco temporário para não mexer em dados reais.
 
-## Implantação e segurança
+## Hospedagem / Docker
 
-- Para uso público, configure HTTPS, `COOKIE_SECURE=1`, reverse proxy, domínio, backups frequentes do diretório `data`, e armazenamento persistente. Restrinja criação de administradores; a conta só é criada se ainda não existir nenhuma.
-- SQLite é adequado para pequeno volume e uso inicial. Para alta concorrência e escala, migrar para PostgreSQL.
-- Não há gateway de pagamentos, cálculo de frete, emissão de NF-e/NFC-e autorizada pela SEFAZ ou integração com transportadoras. A compra da vitrine **envia um pedido**, mas não recebe pagamento online.
-- Os comprovantes em PDF são **documentos comerciais, sem validade fiscal**. Para documentos fiscais verdadeiros, será necessária integração homologada e dados tributários adequados.
-- Antes de publicar em produção, recomenda-se adicionar: recuperação de senha, proteção antiabuso/rate limiting, política de privacidade conforme LGPD, controle de permissões por usuário, e fluxo de aprovação de orçamento, entrega e instalação.
-- Não coloque dados reais de clientes em um ambiente de demonstração compartilhado.
+O arquivo `Dockerfile` copia `app.py` e `v2.py` e sobe o servidor na porta `PORT` ou `8080`. Pode executar `docker compose up --build`; o volume `esquadra-data` mantém banco, senhas e uploads entre reinicializações do container.
 
-## Estrutura do projeto
+Para publicação HTTPS, configure `COOKIE_SECURE=1` e um endereço público protegido. Garanta **volume persistente** na hospedagem (SQLite é gravado no diretório `data/`). Uma plataforma que recria o container sem persistência perderá pedidos e fotos. O app serve `0.0.0.0:8080` com `start_server.py`.
 
-- `app.py` — API FastAPI, regras de negócio, banco e PDF das notas.
-- `run.py` — inicialização local.
-- `templates/store.html` — loja pública.
-- `templates/admin.html` — painel administrativo.
-- `static/css/styles.css` — aparência responsiva.
-- `static/js/store.js` — catálogo e carrinho.
-- `static/js/admin.js` — gestão de produtos, vendas, clientes e configurações.
-- `static/img/` — ilustrações de exemplo, substituíveis pelo upload.
-- `data/` — banco e arquivos da empresa (não incluídos no ZIP depois de testes).
+Faça backup periódico de **todo o diretório `data/`**, com atenção ao banco e imagens. Não disponibilize acesso administrativo inicial na internet antes de configurar a conta com segurança.
 
-Projeto demonstrativo local. Use dados e logotipo próprios da empresa antes de apresentar a clientes.
+## Atenção: limites e itens para a implantação definitiva
 
-## Rodar em Docker / outro servidor
+- **Não processa pagamento online.** Pix/cartão são registrados manualmente no painel. Integração com gateway, webhook de confirmação e conciliação são trabalhos separados.
+- **Não emite NF-e/NFC-e fiscal.** Os PDFs são documentos comerciais, sem autorização da SEFAZ. A emissão fiscal requer integração própria, certificado/dados tributários e validação contábil.
+- **Não calcula frete automaticamente**, não contrata transportadoras e não envia mensagens automáticas pelo WhatsApp/e-mail.
+- **Não há permissões de login por funcionário**, recuperação de senha por e-mail, auditoria completa nem rate limiting de produção; a tabela Equipe é apenas cadastro operacional.
+- **Não é um ERP homologado ou pronto para uso comercial em produção** sem endurecimento de segurança, revisão LGPD, políticas de privacidade, testes adicionais, rotina de backup/restauração e homologação dos processos da loja.
+- O SQLite atende ao teste e uso inicial; para grande volume/múltiplos trabalhadores simultâneos, avaliar PostgreSQL.
+- Modelos ilustrativos e valores de demonstração não são preços de mercado.
 
-Com Docker instalado, execute `docker compose up --build` e abra `http://localhost:8080`.
-O banco e as fotos permanecem no volume `esquadra-data`.
+## Estrutura técnica
 
-Alternativamente, após instalar os pacotes, rode `python start_server.py`: ele escuta em `0.0.0.0` e na porta configurada por `PORT` (padrão: 8080).
+- `app.py` — backend FastAPI original, pedidos, estoque, PDF de comprovantes e configurações.
+- `v2.py` — novas rotas de conta, rastreamento, orçamentos, finanças, compras e serviços; migração das tabelas antigas.
+- `templates/store.html` / `static/js/store.js` — vitrine e carrinho.
+- `templates/account.html` / `static/js/account.js` / `static/css/account.css` — cadastro, login, pedidos e orçamentos do cliente.
+- `templates/admin.html` / `static/js/admin.js` / `static/js/admin-extra.js` — gestão interna.
+- `tests/test_flows.py` — teste automático principal.
+- `static/img` — imagens ilustrativas.
+- `data/` — banco e imagens locais (não incluídos no ZIP).
 
-**Importante:** conclua a criação da conta administrativa em um ambiente seguro *antes* de publicar o primeiro acesso na internet. Não exponha o painel sem HTTPS e proteção adequada. O projeto é uma base funcional e exige endurecimento de segurança, testes e integrações para operação comercial em produção.
+**Atualizar a versão antiga:** faça backup do diretório `data/` da versão 1, copie para a pasta da versão 2 antes da primeira inicialização e execute. As novas tabelas são criadas automaticamente, mantendo dados antigos. Faça uma cópia de segurança antes de migrar e teste primeiro em uma cópia do banco.
+
+## Atualização da instalação na Discloud
+
+Este pacote contém `discloud.config` e `discloud_start.py` da instalação que já usa o ID `esquadra-commerce`. O script da hospedagem inicia a API com host 0.0.0.0 e porta 8080, desliga os produtos demonstrativos e impede que o primeiro visitante crie um administrador. O banco existente é migrado sem apagar produtos e pedidos; os pedidos da versão 1 são marcados como estoque já baixado para evitar dedução dupla.
+
+**Antes de atualizar um app com vendas reais:** faça backup verificado de `data/` (banco, segredo de sessão e fotos) no painel da Discloud. Atualizar o repositório no GitHub não confirma que o provedor mantém `data/` entre deploys. Os arquivos `.env`/dados nunca devem ser publicados no repositório.
+
+A integração GitHub da Discloud pode exigir `Update/Reinstall` ou novo upload pelo painel para aplicar o commit; confirme o status e o endpoint `/health` após a atualização.

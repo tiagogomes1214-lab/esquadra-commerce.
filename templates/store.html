@@ -4,7 +4,7 @@
   <div class="announcement">PROJETOS QUE COMEÇAM NOS DETALHES <span>·</span> PORTAS, JANELAS E ACABAMENTOS</div>
   <header class="store-header"><a class="brand store-brand" href="/" id="store-brand">ESQUADRA<span class="brand-dot">.</span></a>
     <nav class="store-nav"><a href="#colecao">Produtos</a><a href="#especialidades">Categorias</a><a href="#sobre">Sobre nós</a></nav>
-    <div class="store-header-right"><span class="store-header-help">Soluções para o seu espaço</span><button id="cart-open" class="cart-trigger" aria-label="Abrir carrinho"><span data-icon="bag"></span><span id="cart-count" class="cart-count">0</span></button></div>
+    <div class="store-header-right"><a href="/conta" class="store-account-link">Minha conta / Pedidos</a><span class="store-header-help">Soluções para o seu espaço</span><button id="cart-open" class="cart-trigger" aria-label="Abrir carrinho"><span data-icon="bag"></span><span id="cart-count" class="cart-count">0</span></button></div>
   </header>
   <main>
     <section class="store-hero"><div class="hero-copy"><div class="eyebrow"><span class="eyebrow-dash"></span> ESQUADRIAS & ACABAMENTOS</div>
@@ -38,7 +38,7 @@
       <div class="field"><label>Endereço / bairro</label><input name="address" placeholder="Onde será a entrega?"/></div><div class="field"><label>Pagamento</label><select name="payment_method"><option value="a combinar">A combinar com a loja</option><option value="pix">Pix (após confirmação)</option><option value="cartão na loja">Cartão na loja</option><option value="transferência">Transferência</option></select></div>
       <div class="field"><label>Observações</label><textarea name="notes" rows="2" placeholder="Medidas específicas, cor, instalação..."></textarea></div>
       <div class="checkout-total"><span>Total estimado</span><strong id="checkout-total">R$ 0,00</strong></div><button class="button button-dark button-wide" type="submit" id="checkout-submit">Enviar pedido <span data-icon="arrow-right"></span></button><p class="form-helper">Seu pedido será analisado e confirmado pela equipe. Nenhum pagamento é realizado aqui.</p></form>
-    <div id="checkout-success" class="checkout-success hidden"><div class="success-icon"><span data-icon="check"></span></div><h2>Pedido enviado!</h2><p>Recebemos seu pedido <strong id="success-number"></strong>. Nossa equipe entrará em contato para confirmar os detalhes.</p><button class="button button-dark button-wide" id="checkout-finish">Continuar explorando</button></div>
+    <div id="checkout-success" class="checkout-success hidden"><div class="success-icon"><span data-icon="check"></span></div><h2>Pedido enviado!</h2><p>Recebemos seu pedido <strong id="success-number"></strong>. <a href="/conta">Acompanhe a situação em Minha conta</a>. Nossa equipe confirmará os detalhes.</p><button class="button button-dark button-wide" id="checkout-finish">Continuar explorando</button></div>
   </div></div>
   <div id="toast" class="toast hidden" role="status"></div><script src="/static/js/store.js" defer></script>
 </body></html>
