@@ -34,3 +34,18 @@ Durante os primeiros testes, não insira dados de clientes reais, não compartil
 As notas PDF são **comprovantes comerciais sem validade fiscal**, não NF-e/NFC-e. Não há cobrança online automática.
 
 Documentação: https://docs.discloud.com/api-and-integrations/github-integration e https://docs.discloud.com/how-to-host/websites-and-apis
+
+
+## Recuperar o administrador sem apagar produtos ou vendas
+
+Se a tela do painel disser `Usuário ou senha incorretos` após alterar as credenciais, lembre-se: `ESQUADRA_ADMIN_USERNAME` e `ESQUADRA_ADMIN_PASSWORD` apenas criam o primeiro administrador no banco. Elas **não** alteram um usuário já cadastrado automaticamente.
+
+Para forçar uma recuperação com controle do servidor:
+
+1. Faça backup do diretório `data`, principalmente `data/esquadra.sqlite3`.
+2. Nas variáveis privadas do app Discloud, defina `ESQUADRA_ADMIN_USERNAME` e `ESQUADRA_ADMIN_PASSWORD` com os novos valores (senha exclusiva de 16 a 200 caracteres). Não compartilhe esses valores em prints ou no GitHub.
+3. Adicione temporariamente `ESQUADRA_ADMIN_RESET=1` e reinicie o serviço na Discloud. A atualização altera somente usuário, salt e hash da conta administrativa; não apaga outras tabelas.
+4. Entre no painel com as credenciais atualizadas.
+5. **Remova `ESQUADRA_ADMIN_RESET` imediatamente** e reinicie o aplicativo. Não deixe a recuperação ativada em produção.
+
+Não é preciso criar um repositório novo ou apagar o banco SQLite. Se o app não iniciar, consulte os logs e verifique a instalação de variáveis do servidor.

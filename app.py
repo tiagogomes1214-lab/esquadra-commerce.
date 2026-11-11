@@ -191,6 +191,30 @@ def provision_public_admin():
 provision_public_admin()
 
 
+def recover_public_admin():
+    """Explicit, environment-only credential recovery without deleting business data.
+
+    Set ESQUADRA_ADMIN_RESET=1 only during the recovery deployment.
+    Remove it after successful login so later restarts do not reset the password.
+    """
+    if os.getenv('ESQUADRA_PUBLIC_DEPLOYMENT') != '1' or os.getenv('ESQUADRA_ADMIN_RESET') != '1':
+        return
+    username = os.getenv('ESQUADRA_ADMIN_USERNAME', '').strip()
+    password = os.getenv('ESQUADRA_ADMIN_PASSWORD', '')
+    if len(username) < 3 or not 16 <= len(password) <= 200:
+        raise RuntimeError('Recuperacao: configure usuario (3+ caracteres) e senha (16 a 200 caracteres) na Discloud.')
+    with db() as c:
+        existing = c.execute('SELECT id FROM admins ORDER BY id').fetchall()
+        if len(existing) != 1:
+            raise RuntimeError('Recuperacao exige exatamente uma conta administrativa; dados preservados.')
+        salt = secrets.token_hex(16)
+        c.execute('UPDATE admins SET username=?, salt=?, password_hash=? WHERE id=?',
+                  (username, salt, hash_password(password, salt), existing[0]['id']))
+
+
+recover_public_admin()
+
+
 def money_cents(value):
     try:
         val = Decimal(str(value))
