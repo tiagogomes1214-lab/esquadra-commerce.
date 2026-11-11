@@ -1,0 +1,44 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ESQUADRA — Portas e Janelas</title><link rel="stylesheet" href="/static/css/styles.css"/></head>
+<body class="store-page">
+  <div class="announcement">PROJETOS QUE COMEÇAM NOS DETALHES <span>·</span> PORTAS, JANELAS E ACABAMENTOS</div>
+  <header class="store-header"><a class="brand store-brand" href="/" id="store-brand">ESQUADRA<span class="brand-dot">.</span></a>
+    <nav class="store-nav"><a href="#colecao">Produtos</a><a href="#especialidades">Categorias</a><a href="#sobre">Sobre nós</a></nav>
+    <div class="store-header-right"><span class="store-header-help">Soluções para o seu espaço</span><button id="cart-open" class="cart-trigger" aria-label="Abrir carrinho"><span data-icon="bag"></span><span id="cart-count" class="cart-count">0</span></button></div>
+  </header>
+  <main>
+    <section class="store-hero"><div class="hero-copy"><div class="eyebrow"><span class="eyebrow-dash"></span> ESQUADRIAS & ACABAMENTOS</div>
+      <h1>O detalhe que<br/>transforma <em>tudo.</em></h1><p>Portas e janelas de alumínio e madeira que combinam design, qualidade e funcionalidade para cada ambiente.</p>
+      <div class="hero-cta"><a href="#colecao" class="button button-dark">Explorar catálogo <span data-icon="arrow-up-right"></span></a><a href="#especialidades" class="button button-text">Nossas especialidades <span data-icon="arrow-right"></span></a></div>
+      <div class="hero-bottom"><span>01 / 03</span><span class="hero-bottom-line"></span><span>FEITO PARA O SEU PROJETO</span></div>
+    </div><div class="hero-visual"><div class="hero-visual-top">DESIGN ESSENCIAL <span>2026 COLLECTION</span></div>
+      <div class="hero-arch"><div class="arch-frame"><div class="arch-left"></div><div class="arch-right"></div><div class="arch-shadow"></div></div></div>
+      <div class="hero-visual-footer"><div><span>ESSÊNCIA CONTEMPORÂNEA</span><strong>Arquitetura em cada abertura.</strong></div><span class="circle-arrow" data-icon="arrow-up-right"></span></div>
+    </div></section>
+    <section class="benefit-bar"><div><span data-icon="check"></span> Diversidade de modelos</div><div><span data-icon="ruler"></span> Medidas para cada projeto</div><div><span data-icon="shield"></span> Qualidade e durabilidade</div></section>
+    <section class="store-section" id="colecao"><div class="section-title-row"><div><div class="eyebrow dark-eyebrow">NOSSA SELEÇÃO</div><h2>Encontre a peça certa<span class="period">.</span></h2><p>Do clássico ao contemporâneo, soluções para valorizar seu espaço.</p></div><span class="catalog-counter" id="catalog-count">Carregando produtos...</span></div>
+      <div class="catalog-controls"><div class="filter-pills" id="filter-pills"></div><label class="search-product"><span data-icon="search"></span><input type="search" id="store-search" placeholder="Buscar por produto..." autocomplete="off"/></label></div>
+      <div class="product-grid" id="product-grid"></div>
+    </section>
+    <section class="category-section" id="especialidades"><div class="eyebrow dark-eyebrow">PARA CADA AMBIENTE</div><div class="category-header"><h2>Materiais que inspiram.</h2><p>Acabamentos marcantes e soluções inteligentes, com a estética que o seu projeto merece.</p></div>
+      <div class="category-tiles"><a href="#colecao" class="category-tile" data-category="Portas de alumínio"><span>01 / LINHA ALUMÍNIO</span><strong>Resistência<br/>e sofisticação.</strong><span class="category-link">Explorar portas <b data-icon="arrow-up-right"></b></span></a>
+      <a href="#colecao" class="category-tile category-tile-light" data-category="Portas de madeira"><span>02 / LINHA MADEIRA</span><strong>Texturas que<br/>acolhem.</strong><span class="category-link">Explorar madeira <b data-icon="arrow-up-right"></b></span></a></div>
+    </section>
+    <section class="store-about" id="sobre"><div class="eyebrow">SUA IDEIA, NOSSA SOLUÇÃO</div><h2>Um novo olhar para<br/>portas e janelas.</h2><p id="store-tagline">Design que transforma espaços.</p><a href="#colecao" class="button button-white">Conhecer produtos <span data-icon="arrow-up-right"></span></a></section>
+  </main>
+  <footer class="store-footer"><div class="brand">ESQUADRA<span class="brand-dot">.</span></div><span id="store-contact">Acabamentos e esquadrias</span><span>© 2026 · Todos os direitos reservados</span><a href="/admin" title="Acesso administrativo">Acesso à equipe</a></footer>
+  <div id="cart-backdrop" class="drawer-backdrop hidden"></div><aside id="cart-drawer" class="cart-drawer" aria-label="Carrinho de compras">
+    <div class="cart-drawer-head"><div><span class="eyebrow dark-eyebrow">SEU PEDIDO</span><h2>Carrinho <span id="drawer-count">(0)</span></h2></div><button class="icon-button" id="cart-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <div id="cart-body" class="cart-body"></div>
+    <div id="cart-footer" class="cart-footer"><div class="cart-total"><span>Subtotal</span><strong id="cart-total">R$ 0,00</strong></div><p>Entrega, instalação e prazo são combinados com a equipe.</p><button class="button button-dark button-wide" id="checkout-open">Finalizar pedido <span data-icon="arrow-right"></span></button></div>
+  </aside>
+  <div id="checkout-layer" class="modal-backdrop hidden"><div class="checkout-modal"><div class="modal-header"><div><span class="eyebrow dark-eyebrow">QUASE LÁ</span><h2>Finalizar pedido</h2><p>Informe seus dados para solicitar a compra.</p></div><button class="icon-button" id="checkout-close" aria-label="Fechar"><span data-icon="x"></span></button></div>
+    <form id="checkout-form" class="form-stack"><div class="field"><label>Nome completo *</label><input name="customer_name" required minlength="2" placeholder="Como podemos chamar você?"/></div>
+      <div class="field-row"><div class="field"><label>WhatsApp</label><input name="phone" placeholder="(11) 99999-9999"/></div><div class="field"><label>E-mail</label><input type="email" name="email" placeholder="voce@email.com"/></div></div>
+      <div class="field"><label>Endereço / bairro</label><input name="address" placeholder="Onde será a entrega?"/></div><div class="field"><label>Pagamento</label><select name="payment_method"><option value="a combinar">A combinar com a loja</option><option value="pix">Pix (após confirmação)</option><option value="cartão na loja">Cartão na loja</option><option value="transferência">Transferência</option></select></div>
+      <div class="field"><label>Observações</label><textarea name="notes" rows="2" placeholder="Medidas específicas, cor, instalação..."></textarea></div>
+      <div class="checkout-total"><span>Total estimado</span><strong id="checkout-total">R$ 0,00</strong></div><button class="button button-dark button-wide" type="submit" id="checkout-submit">Enviar pedido <span data-icon="arrow-right"></span></button><p class="form-helper">Seu pedido será analisado e confirmado pela equipe. Nenhum pagamento é realizado aqui.</p></form>
+    <div id="checkout-success" class="checkout-success hidden"><div class="success-icon"><span data-icon="check"></span></div><h2>Pedido enviado!</h2><p>Recebemos seu pedido <strong id="success-number"></strong>. Nossa equipe entrará em contato para confirmar os detalhes.</p><button class="button button-dark button-wide" id="checkout-finish">Continuar explorando</button></div>
+  </div></div>
+  <div id="toast" class="toast hidden" role="status"></div><script src="/static/js/store.js" defer></script>
+</body></html>
