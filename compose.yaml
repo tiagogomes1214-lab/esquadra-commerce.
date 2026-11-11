@@ -1,0 +1,13 @@
+services:
+  esquadra:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      COOKIE_SECURE: "0" # alterar para 1 atrás de HTTPS em produção
+    volumes:
+      - esquadra-data:/app/data
+    restart: unless-stopped
+volumes:
+  esquadra-data:
